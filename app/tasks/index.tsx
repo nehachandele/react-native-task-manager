@@ -1,14 +1,7 @@
 import { Audio } from 'expo-av';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import {
-    CheckBox,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { CheckBox, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { getTasks, saveTasks, Task } from '../../storage/taskStorage';
 
@@ -24,8 +17,10 @@ export default function TaskListScreen() {
     }, [])
   );
 
+  // Load tasks and ensure it's always an array
   const loadTasks = async () => {
-    const data = await getTasks();
+    let data = await getTasks();
+    if (!Array.isArray(data)) data = [];
     setTasks(data);
   };
 
@@ -83,7 +78,8 @@ export default function TaskListScreen() {
     return { color: '#777' }; // normal
   };
 
-  const filteredTasks = tasks.filter(task => {
+  // Filter tasks safely
+  const filteredTasks = (tasks || []).filter(task => {
     if (filter === 'All') return true;
     if (filter === 'Pending') return !task.completed;
     if (filter === 'Completed') return task.completed;
@@ -104,9 +100,7 @@ export default function TaskListScreen() {
             </Text>
           )}
           {item.priority && (
-            <View
-              style={[styles.priorityTag, { backgroundColor: getPriorityColor(item.priority) }]}
-            >
+            <View style={[styles.priorityTag, { backgroundColor: getPriorityColor(item.priority) }]}>
               <Text style={styles.priorityText}>{item.priority}</Text>
             </View>
           )}
@@ -148,11 +142,11 @@ export default function TaskListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f0f4f7' },
-  empty: { textAlign: 'center', marginTop: 40, color: 'gray', fontSize: 16 },
+  container: { flex: 1, padding: 16, backgroundColor: '#f5f0ff' },
+  empty: { textAlign: 'center', marginTop: 40, color: '#555', fontSize: 16 },
   filterBar: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8 },
-  filterText: { fontSize: 14, padding: 6, color: '#555' },
-  activeFilter: { fontWeight: '700', color: '#4CAF50', textDecorationLine: 'underline' },
+  filterText: { fontSize: 14, padding: 6, color: '#777' },
+  activeFilter: { fontWeight: '700', color: '#800080', textDecorationLine: 'underline' },
   card: {
     padding: 14,
     backgroundColor: '#fff',
@@ -160,26 +154,21 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowColor: '#800080',
+    shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 5,
   },
-  completedCard: { backgroundColor: '#d4edda' },
+  completedCard: { backgroundColor: '#e6e6fa' },
   cardContent: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  title: { fontSize: 18, fontWeight: '600', color: '#333' },
-  completed: { textDecorationLine: 'line-through', color: '#888' },
+  title: { fontSize: 18, fontWeight: '600', color: '#4b0082' },
+  completed: { textDecorationLine: 'line-through', color: '#aaa' },
   desc: { fontSize: 14, color: '#555', marginTop: 4 },
-  completedDesc: { color: '#666' },
+  completedDesc: { color: '#888' },
   meta: { fontSize: 12, color: '#777', marginTop: 2 },
-  delete: { fontSize: 20, paddingHorizontal: 10 },
-  addBtn: {
-    backgroundColor: '#4CAF50',
-    padding: 16,
-    borderRadius: 16,
-    marginTop: 16,
-  },
+  delete: { fontSize: 20, paddingHorizontal: 10, color: '#800080' },
+  addBtn: { backgroundColor: '#4b0082', padding: 16, borderRadius: 16, marginTop: 16 },
   addText: { color: '#fff', textAlign: 'center', fontSize: 18, fontWeight: '600' },
   priorityTag: {
     paddingHorizontal: 8,
@@ -188,5 +177,5 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 4,
   },
-  priorityText: { fontSize: 10, fontWeight: '600', color: '#333' },
+  priorityText: { fontSize: 10, fontWeight: '600', color: '#fff' },
 });
