@@ -1,6 +1,6 @@
 import { Audio } from 'expo-av';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
     CheckBox,
     FlatList,
@@ -9,11 +9,14 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import { getTasks, saveTasks, Task } from '../../storage/taskStorage';
 
 export default function TaskListScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [filter, setFilter] = useState<'All' | 'Pending' | 'Completed' | 'High'>('All');
   const router = useRouter();
+  const confettiRef = useRef<any>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -45,7 +48,10 @@ export default function TaskListScreen() {
     await saveTasks(updated);
 
     const toggledTask = updated.find(task => task.id === id);
-    if (toggledTask?.completed) playSound();
+    if (toggledTask?.completed) {
+      playSound();
+      confettiRef.current?.start();
+    }
   };
 
   const deleteTask = async (id: string) => {
@@ -53,6 +59,36 @@ export default function TaskListScreen() {
     setTasks(updated);
     await saveTasks(updated);
   };
+
+  const getPriorityColor = (priority?: 'Low' | 'Medium' | 'High') => {
+    switch (priority) {
+      case 'High':
+        return '#f56262'; // Red
+      case 'Medium':
+        return '#f5d562'; // Yellow
+      case 'Low':
+        return '#62f57d'; // Green
+      default:
+        return '#ccc';
+    }
+  };
+
+  const getDueStyle = (dueDate?: string, completed?: boolean) => {
+    if (!dueDate || completed) return {};
+    const now = new Date();
+    const due = new Date(dueDate);
+    if (due < now) return { color: 'red', fontWeight: '700' }; // overdue
+    const diff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff <= 2) return { color: '#f5a623', fontWeight: '600' }; // due soon
+    return { color: '#777' }; // normal
+  };
+
+  const filteredTasks = tasks.filter(task => {
+    if (filter === 'All') return true;
+    if (filter === 'Pending') return !task.completed;
+    if (filter === 'Completed') return task.completed;
+    if (filter === 'High') return task.priority === 'High';
+  });
 
   const renderItem = ({ item }: { item: Task }) => (
     <View style={[styles.card, item.completed && styles.completedCard]}>
@@ -67,8 +103,18 @@ export default function TaskListScreen() {
               {item.description}
             </Text>
           )}
-          {item.priority && <Text style={styles.meta}>Priority: {item.priority}</Text>}
-          {item.dueDate && <Text style={styles.meta}>Due: {item.dueDate}</Text>}
+          {item.priority && (
+            <View
+              style={[styles.priorityTag, { backgroundColor: getPriorityColor(item.priority) }]}
+            >
+              <Text style={styles.priorityText}>{item.priority}</Text>
+            </View>
+          )}
+          {item.dueDate && (
+            <Text style={[styles.meta, getDueStyle(item.dueDate, item.completed)]}>
+              Due: {item.dueDate}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -80,13 +126,23 @@ export default function TaskListScreen() {
 
   return (
     <View style={styles.container}>
-      {tasks.length === 0 && <Text style={styles.empty}>No tasks yet 👀</Text>}
+      <View style={styles.filterBar}>
+        {['All', 'Pending', 'Completed', 'High'].map(f => (
+          <TouchableOpacity key={f} onPress={() => setFilter(f as any)}>
+            <Text style={[styles.filterText, filter === f && styles.activeFilter]}>{f}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-      <FlatList data={tasks} keyExtractor={item => item.id} renderItem={renderItem} />
+      {filteredTasks.length === 0 && <Text style={styles.empty}>No tasks yet 👀</Text>}
+
+      <FlatList data={filteredTasks} keyExtractor={item => item.id} renderItem={renderItem} />
 
       <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/tasks/add')}>
         <Text style={styles.addText}>+ Add Task</Text>
       </TouchableOpacity>
+
+      <ConfettiCannon ref={confettiRef} count={50} origin={{ x: 150, y: 0 }} autoStart={false} />
     </View>
   );
 }
@@ -94,6 +150,9 @@ export default function TaskListScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#f0f4f7' },
   empty: { textAlign: 'center', marginTop: 40, color: 'gray', fontSize: 16 },
+  filterBar: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8 },
+  filterText: { fontSize: 14, padding: 6, color: '#555' },
+  activeFilter: { fontWeight: '700', color: '#4CAF50', textDecorationLine: 'underline' },
   card: {
     padding: 14,
     backgroundColor: '#fff',
@@ -122,4 +181,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   addText: { color: '#fff', textAlign: 'center', fontSize: 18, fontWeight: '600' },
+  priorityTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  priorityText: { fontSize: 10, fontWeight: '600', color: '#333' },
 });
